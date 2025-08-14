@@ -85,5 +85,25 @@ export const login = async (req, res) => {
 }
 
 export const logout = async (req, res) => {
-  res.json({ data: "Logout route" })
+  try {
+    res.clearCookie("token", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+    })
+    res.status(200).json({ message: "Logged out successfully" })
+  } catch (error) {
+    console.error("Error logout controller:", error)
+    return res.status(500).json({ error: "Internal server error" })
+  }
+}
+
+export const getMe = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id)
+    res.status(200).json(formatUser(user))
+  } catch (error) {
+    console.error("Error getMe controller:", error)
+    res.status(500).json({ error: "Internal server error" })
+  }
 }
