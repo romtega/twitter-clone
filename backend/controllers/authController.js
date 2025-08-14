@@ -1,18 +1,19 @@
 import bcrypt from "bcryptjs"
 import User from "../models/User.js"
 import { generateTokenAndSetCookie } from "../lib/utils/generateToken.js"
+import { formatUser } from "../lib/utils/formatUser.js"
 
 export const signup = async (req, res) => {
   try {
     let { username, fullName, email, password } = req.body || {}
 
+    username = username?.trim().toLowerCase()
+    fullName = fullName?.trim()
+    email = email?.trim().toLowerCase()
+
     if (!username || !fullName || !email || !password) {
       return res.status(400).json({ error: "All fields are required" })
     }
-
-    username = String(username).trim().toLowerCase()
-    fullName = String(fullName).trim()
-    email = String(email).trim().toLowerCase()
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email)) {
@@ -34,7 +35,6 @@ export const signup = async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10)
-
     const user = await User.create({
       username,
       fullName,
@@ -42,19 +42,9 @@ export const signup = async (req, res) => {
       password: hashedPassword,
     })
 
-    // Cookie con JWT (después de crear)
     generateTokenAndSetCookie(user._id, res)
 
-    return res.status(201).json({
-      id: user._id,
-      username: user.username,
-      fullName: user.fullName,
-      email: user.email,
-      profileImg: user.profileImg ?? null,
-      coverImg: user.coverImg ?? null,
-      followers: user.followers,
-      following: user.following,
-    })
+    return res.status(201).json(formatUser(user))
   } catch (error) {
     if (error?.code === 11000) {
       const field = Object.keys(error.keyPattern || {})[0] || "field"
@@ -66,7 +56,32 @@ export const signup = async (req, res) => {
 }
 
 export const login = async (req, res) => {
-  res.json({ data: "Login route" })
+  try {
+    let { username, email, password } = req.body || {}
+
+    username = username ? String(username).trim().toLowerCase() : undefined
+    email = email ? String(email).trim().toLowerCase() : undefined
+
+    const user = await User.findOne({
+      $or: [{ username }, { email }],
+    }).select("+password")
+
+    if (!user) {
+      return res.status(400).json({ error: "Invalid credentials" })
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password)
+    if (!isPasswordValid) {
+      return res.status(400).json({ error: "Invalid credentials" })
+    }
+
+    generateTokenAndSetCookie(user._id, res)
+
+    return res.status(200).json(formatUser(user))
+  } catch (error) {
+    console.error("Error login controller:", error)
+    return res.status(500).json({ error: "Internal server error" })
+  }
 }
 
 export const logout = async (req, res) => {
