@@ -2,8 +2,11 @@ import express from "express"
 import dotenv from "dotenv"
 import cors from "cors"
 import cookieParser from "cookie-parser"
-import connectMongoDB from "./db/connectMongoDB.js"
+
 import authRoutes from "./routes/authRoutes.js"
+import userRoutes from "./routes/userRoutes.js"
+
+import connectMongoDB from "./db/connectMongoDB.js"
 
 dotenv.config()
 const app = express()
@@ -20,6 +23,7 @@ app.use(
 )
 
 app.use("/api/auth", authRoutes)
+app.use("/api/users", userRoutes)
 
 app.listen(PORT, () => {
   console.log(`Server is listening on port ${PORT}`)
